@@ -1,16 +1,22 @@
-# This is a sample Python script.
+import pandas as pd
+import os
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+# 1. Készítünk egy kis minta adatot (mintha ezt olvastuk volna ki egy PDF-ből)
+data = {
+    'Dátum': ['2025-01-13', '2025-01-14'],
+    'Tétel': ['Laptop javítás', 'Monitor vásárlás'],
+    'Összeg': ['12500 Ft', '50000 Ft']
+}
 
+# 2. Átalakítjuk DataFrame-mé (ez a Pandas táblázat formátuma)
+df = pd.DataFrame(data)
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+# 3. Kiírjuk a konzolra, hogy lássuk
+print("Ez kerül az Excelbe:")
+print(df)
 
+# 4. Kimentjük Excelbe
+output_file = "teszt_szamla.xlsx"
+df.to_excel(output_file, index=False)
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+print(f"\nSiker! A fájl létrejött itt: {os.getcwd()}\\{output_file}")
