@@ -1,22 +1,37 @@
-import pandas as pd
+import pdfplumber
 import os
 
-# 1. Készítünk egy kis minta adatot (mintha ezt olvastuk volna ki egy PDF-ből)
-data = {
-    'Dátum': ['2025-01-13', '2025-01-14'],
-    'Tétel': ['Laptop javítás', 'Monitor vásárlás'],
-    'Összeg': ['12500 Ft', '50000 Ft']
-}
+def analyze_pdf(file_path: str) -> None:
 
-# 2. Átalakítjuk DataFrame-mé (ez a Pandas táblázat formátuma)
-df = pd.DataFrame(data)
+    #Elemzi a pdf fájlt és kiírja a tartalmát
+    print(f"--- Elemzés kezdete: {file_path} ---")
 
-# 3. Kiírjuk a konzolra, hogy lássuk
-print("Ez kerül az Excelbe:")
-print(df)
+    with pdfplumber.open(file_path) as pdf:
+        first_page = pdf.pages[0]
 
-# 4. Kimentjük Excelbe
-output_file = "teszt_szamla.xlsx"
-df.to_excel(output_file, index=False)
+        #1. A szöveg kinyerése
+        text_content = first_page.extract_text()
+        print("\n:")
+        print(text_content)
+        print('-'*30)
 
-print(f"\nSiker! A fájl létrejött itt: {os.getcwd()}\\{output_file}")
+        #2. Táblázatok keresése
+        tables = first_page.extract_table()
+
+        print("\n:")
+        if tables:
+            for row in tables:
+                print(row)
+        else:
+            print("Nem találtam táblázatot ezen az oldalon.")
+
+#Futtatás
+if __name__ == "__main__":
+    #A számla helye
+    pdf_path = os.path.join("data","szamla.pdf")
+
+    #Ellenőrizzük a fájl létezését
+    if os.path.exists(pdf_path):
+        analyze_pdf(pdf_path)
+    else:
+        print(f"HIBA: Nem találom a fájlt itt: {pdf_path}")
