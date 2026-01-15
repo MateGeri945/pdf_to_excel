@@ -1,37 +1,90 @@
 import pdfplumber
+import pandas as pd
+import re               #Mintakereséshez
 import os
+import unicodedata      #Ez a karakterek javítására szolgál
 
-def analyze_pdf(file_path: str) -> None:
+def clean_text(text):
+    #A szétesett ékezetes karakterek javítására szolgál
+    if not text: return ""
 
-    #Elemzi a pdf fájlt és kiírja a tartalmát
-    print(f"--- Elemzés kezdete: {file_path} ---")
+    #1. Unicode normalizálás
+    text = unicodedata.normalize('NFC',text)
 
-    with pdfplumber.open(file_path) as pdf:
+    #2. Manuális javítás
+    replacements = {
+        "´a": "á", "´A": "Á",
+        "´e": "é", "´E": "É",
+        "´i": "í", "´I": "Í",
+        "´o": "ó", "´O": "Ó",
+        "´u": "ú", "´U": "Ú",
+        "˝o": "ő", "˝O": "Ő",
+        "˝u": "ű", "˝U": "Ű",
+        "´ı": "í", "¨o": "ö",
+        # Egyéb szemetek takarítása
+        "(cid:114)": "",
+        "õ": "ő", "û": "ű"  # Gyakori kódolási hiba régi számláknál
+    }
+
+    for bad,good in replacements.items():
+        text = text.replace(bad, good)
+    replacements_reverse = {
+        "a´": "á", "e´": "é", "o˝": "ő", "A´": "Á"
+    }
+    for bad,good in replacements_reverse.items():
+        text = text.replace(bad, good)
+
+    return text
+
+
+def extract_data(pdf_path):
+    print(f"Analyzing {pdf_path}\n")
+    data = {}    #ide gyűjtjük az adatokat
+
+    with pdfplumber.open(pdf_path) as pdf:
         first_page = pdf.pages[0]
+        raw_text = first_page.extract_text()
+        text = clean_text(raw_text)
+        # print(text)
 
-        #1. A szöveg kinyerése
-        text_content = first_page.extract_text()
-        print("\n:")
-        print(text_content)
-        print('-'*30)
-
-        #2. Táblázatok keresése
-        tables = first_page.extract_table()
-
-        print("\n:")
-        if tables:
-            for row in tables:
-                print(row)
+        #A számlaszám keresése
+        invoice_num_match = re.search(r'Számlaszám:\s*([A-Z]+-\d{4}-\d{1})',text)
+        if invoice_num_match:
+            data["Számlaszám"] = invoice_num_match.group(1)
         else:
-            print("Nem találtam táblázatot ezen az oldalon.")
+            data["Számlaszám"] = "Nem található"
 
-#Futtatás
+        #Végösszeg keresése
+        total_match = re.search(r"Fizetendő:\s*([\d\s]+)",text)
+        if total_match:
+            raw_amount = total_match.group(1).replace(" ", "")
+            data["Fizetendő"] = int(raw_amount)
+        else:
+            data["Fizetendő"] = 0
+
+        #Dátum
+        date_match = re.search(r'Telj.:\s*(\d{4}\.\d{2}\.\d{2}\.)', text)
+        if date_match:
+            data["Dátum"] = date_match.group(1)
+        else:
+            data["Dátum"] = "Nincs adat"
+
+    return data
+
+
+
+#Main program
 if __name__ == "__main__":
-    #A számla helye
-    pdf_path = os.path.join("data","szamla.pdf")
+    pdf_file = os.path.join("data","szamla.pdf")
 
-    #Ellenőrizzük a fájl létezését
-    if os.path.exists(pdf_path):
-        analyze_pdf(pdf_path)
-    else:
-        print(f"HIBA: Nem találom a fájlt itt: {pdf_path}")
+    if os.path.exists(pdf_file):
+        #Számla adatai
+        invoice_data = extract_data(pdf_file)
+        print(f"Kinyert adatok: {invoice_data}")
+
+        #Excel készítése
+        df = pd.DataFrame([invoice_data])
+
+        output_file = "szamla_adatok.xlsx"
+        df.to_excel(output_file)
+        print(f"\n✅ SIKER! Az Excel fájl elkészült: {output_file}")
